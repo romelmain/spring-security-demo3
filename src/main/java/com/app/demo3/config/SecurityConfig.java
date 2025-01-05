@@ -24,21 +24,37 @@ import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
+import com.app.demo3.Util.JwtUtils;
+import com.app.demo3.config.filter.JwtTokenValidator;
 import com.app.demo3.service.UserDetailServiceImpl;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+// @EnableMethodSecurity
 public class SecurityConfig {
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
+    @Autowired
+    private JwtUtils jwtUtils;
 
+    @Bean
+    SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity, AuthenticationProvider authenticationProvider)
+            throws Exception {
         return httpSecurity
                 .csrf(csrf -> csrf.disable())
-                .httpBasic(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(http -> {
+                    // EndPoints publicos
+                    http.requestMatchers(HttpMethod.POST, "/auth/**").permitAll();
+
+                    // EndPoints Privados
+
+                    http.requestMatchers(HttpMethod.POST, "/method/post").hasAnyRole("ADMIN", "DEVELOPER");
+
+                    http.anyRequest().denyAll();
+                })
+                .addFilterBefore(new JwtTokenValidator(jwtUtils), BasicAuthenticationFilter.class)
                 .build();
     }
 
@@ -61,9 +77,10 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
         // return NoOpPasswordEncoder.getInstance(); // Solo para pruebas sin encriptar
     }
-
-    public static void main(String[] args) {
-        System.out.println(new BCryptPasswordEncoder().encode("1234"));
-    }
+    /*
+     * public static void main(String[] args) {
+     * System.out.println(new BCryptPasswordEncoder().encode("1234"));
+     * }
+     */
 
 }
